@@ -59,9 +59,9 @@
     NSString * endpoint = [dic objectForKey:@"endpoint"];
     NSString * key = [dic objectForKey:@"key"];
     int64_t pid = [[dic objectForKey:@"pid"] longLongValue];
-    int64_t uid = [[dic objectForKey:@"uid"] longLongValue];
+//    int64_t uid = [[dic objectForKey:@"uid"] longLongValue];
     
-    if (self.client.userId != uid || self.client.projectId != pid) {
+    if (self.client.projectId != pid) {
         
         self.client.delegate = nil;
         [self.client closeConnect];
@@ -70,7 +70,7 @@
         
     self.client = [RTVTClient clientWithEndpoint:endpoint
                                        projectId:pid
-                                          userId:uid
+                                          userId:1
                                         delegate:self];
     
     [self.client loginWithKey:key success:^{

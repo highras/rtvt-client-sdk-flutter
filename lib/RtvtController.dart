@@ -25,7 +25,7 @@ class RtvtController {
 
   Future<dynamic> _handleNativeMethodCall(MethodCall call) async {
     // do some processing
-    print(call.method);
+    // print(call.method);
     Map result = call.arguments;
     if (call.method == "rtvtRecognizeResult") {
       delegate.rtvtRecognizeResult(result["streamId"], result["result"],
