@@ -128,7 +128,7 @@ mixin RtvtDelegate {
       int streamId, String result, int startTs, int endTs, int recTs);
 
   /**
-  * @param code 0代表重连成功
+  * @param code 0代表重连成功。成功后需要重新调用startTranslate。
   */
   void rtvtReloginResult(int code, String ex);
 }
