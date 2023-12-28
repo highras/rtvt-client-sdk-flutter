@@ -2,10 +2,11 @@
 //  RtvtHandler.m
 //  Runner
 //
-//  Created by 张世良 on 2022/11/10.
+//  Created by zsl on 2022/11/10.
 //
 
 #import "RtvtHandler.h"
+#import "RTVTGetToken.h"
 @interface RtvtHandler()<RTVTProtocol>
 
 @property(nonatomic,weak)NSObject <FlutterBinaryMessenger> * messenger;
@@ -55,12 +56,17 @@
 
 -(void)_login:(NSDictionary*)dic call:(FlutterResult)result{
     
-//    NSLog(@"%s  %@",__FUNCTION__,dic);
+
     NSString * endpoint = [dic objectForKey:@"endpoint"];
-    NSString * key = [dic objectForKey:@"key"];
     int64_t pid = [[dic objectForKey:@"pid"] longLongValue];
-//    int64_t uid = [[dic objectForKey:@"uid"] longLongValue];
+    NSString * key = [dic objectForKey:@"key"];
+    if(endpoint == nil || pid == 0 || key == nil){
+        result(@{@"code":@(100000),@"ex":@"rtvt login error. Invalid parameter (endpoint == nil || pid == 0 || key == nil)"});
+        return;
+    }
+    NSDictionary * tokenDic = [RTVTGetToken getToken:key pid:[NSString stringWithFormat:@"%lld",pid]];
     
+    //换另一个项目ID
     if (self.client.projectId != pid) {
         
         self.client.delegate = nil;
@@ -70,43 +76,64 @@
         
     self.client = [RTVTClient clientWithEndpoint:endpoint
                                        projectId:pid
-                                          userId:1
                                         delegate:self];
     
-    [self.client loginWithKey:key success:^{
+    [self.client loginWithToken:[tokenDic valueForKey:@"token"]
+                             ts:[[tokenDic valueForKey:@"ts"] longLongValue]
+                      success:^{
 
         result(@{@"code":@(0)});
+        NSLog(@"rtvt login success");
 
     } connectFail:^(FPNError * _Nullable error) {
-    
+
         result(@{@"code":@(error.code),@"ex":error.ex});
-        
+        NSLog(@"rtvt login fail %@",error);
+
     }];
-        
+    
+            
     
 }
 
 
 -(void)_getStreamId:(NSDictionary*)dic call:(FlutterResult)result{
     
-//    NSLog(@"%s  %@",__FUNCTION__,dic);
+
     BOOL asrResult = [[dic objectForKey:@"asrResult"] boolValue];
+    BOOL transResult = [[dic objectForKey:@"transResult"] boolValue];
+    BOOL asrTempResult = [[dic objectForKey:@"asrTempResult"] boolValue];
+    NSString * userId = [dic objectForKey:@"userId"];
     NSString * srcLanguage = [dic objectForKey:@"srcLanguage"];
     NSString * destLanguage = [dic objectForKey:@"destLanguage"];
+    NSArray * srcAltLanguage = [dic objectForKey:@"srcAltLanguage"];
+    
+    if (srcLanguage == nil || destLanguage == nil) {
+        result(@{@"code":@(100000),@"ex":@"rtvt _getStreamId error. Invalid parameter (srcLanguage == nil || destLanguage == nil)"});
+        return;
+        
+    }
     
     [self.client starStreamTranslateWithAsrResult:asrResult
+                                      transResult:transResult
+                                    asrTempResult:asrTempResult
+                                           userId:userId
                                       srcLanguage:srcLanguage
                                      destLanguage:destLanguage
+                                   srcAltLanguage:srcAltLanguage
                                           success:^(int64_t streamId) {
         
         result(@{@"code":@(0),@"streamId":@(streamId)});
+        NSLog(@"rtvt _getStreamId success");
+        
         
     } fail:^(FPNError * _Nullable error) {
         
+        
         result(@{@"code":@(error.code),@"ex":error.ex});
+        NSLog(@"rtvt _getStreamId fail %@",error);
         
     }];
-    
 }
 
 
@@ -116,16 +143,24 @@
     int64_t streamId = [[dic objectForKey:@"streamId"] longLongValue];
     int64_t lastSeq = [[dic objectForKey:@"lastSeq"]longLongValue];
     
+    if (streamId == 0) {
+        result(@{@"code":@(100000),@"ex":@"rtvt _endWithStreamId error. Invalid parameter (streamId == 0)"});
+        return;
+        
+    }
+    
     [self.client endTranslateWithStreamId:streamId
                                   lastSeq:lastSeq
                                   success:^{
         
    
         result(@{@"code":@(0)});
+        NSLog(@"rtvt _endWithStreamId success");
         
     } fail:^(FPNError * _Nullable error) {
         
         result(@{@"code":@(error.code),@"ex":error.ex});
+        NSLog(@"rtvt _endWithStreamId fail %@",error);
         
     }];
 }
@@ -133,22 +168,30 @@
 
 -(void)_sendPcm:(NSDictionary*)dic call:(FlutterResult)result{
 
-//    NSLog(@"%s  %@",__FUNCTION__,dic);
+
     FlutterStandardTypedData * tData = [dic objectForKey:@"pcmData"];
     int64_t streamId = [[dic objectForKey:@"streamId"] longLongValue];
     int64_t lastSeq = [[dic objectForKey:@"lastSeq"]longLongValue];
-    int ts = [[dic objectForKey:@"ts"] intValue];
+    int64_t ts = [[dic objectForKey:@"ts"] longLongValue];
+    
+    if (tData.data == nil || streamId == 0) {
+        
+        result(@{@"code":@(0),@"ex":@"rtvt _sendPcm fail. Invalid parameter (tData.data == nil || streamId == 0)"});
+        return;
+        
+    }
+    
     [self.client sendVoiceWithStreamId:streamId
                              voiceData:tData.data
                                    seq:lastSeq
                                     ts:ts
                                success:^{
         
-        result(@{@"code":@(0),@"errorEx":@""});
+        result(@{@"code":@(0)});
 
     } fail:^(FPNError * _Nullable error) {
  
-        result(@{@"code":@(error.code),@"errorEx":error.ex});
+        result(@{@"code":@(error.code),@"ex":error.ex});
 
     }];
     
@@ -157,52 +200,102 @@
 
 -(void)_close{
     
-//    NSLog(@"%s",__FUNCTION__);
+    NSLog(@"%s",__FUNCTION__);
     [self.client closeConnect];
     
 }
 
+-(void)translatedResultWithStreamId:(int64_t)streamId
+                            startTs:(int64_t)startTs
+                              endTs:(int64_t)endTs
+                             result:(NSString * _Nullable)result
+                              recTs:(int64_t)recTs{
 
--(void)translatedResultWithStreamId:(int64_t)streamId startTs:(int)startTs endTs:(int)endTs result:(NSString *)result recTs:(int)recTs{
-//    NSLog(@"translatedResultWithStreamIdtranslatedResultWithStreamId  %@",result);
-//    dispatch_async(dispatch_get_global_queue(0, 0), ^{
-
-        NSMutableDictionary * arguments = [NSMutableDictionary dictionary];
-        [arguments setValue:@(streamId) forKey:@"streamId"];
-        [arguments setValue:@(startTs) forKey:@"startTs"];
-        [arguments setValue:@(endTs) forKey:@"endTs"];
-        [arguments setValue:result forKey:@"result"];
-        [arguments setValue:@(recTs) forKey:@"recTs"];
-
-        [self.methodChannel invokeMethod:@"rtvtTranslatedResult" arguments:arguments];
-
-//    });
-}
--(void)recognizedResultWithStreamId:(int64_t)streamId startTs:(int)startTs endTs:(int)endTs result:(NSString *)result recTs:(int)recTs{
-//    NSLog(@"recognizedResultWithStreamId  %@",result);
     
-//    dispatch_async(dispatch_get_global_queue(0, 0), ^{
-        
-        NSMutableDictionary * arguments = [NSMutableDictionary dictionary];
-        [arguments setValue:@(streamId) forKey:@"streamId"];
-        [arguments setValue:@(startTs) forKey:@"startTs"];
-        [arguments setValue:@(endTs) forKey:@"endTs"];
-        [arguments setValue:result forKey:@"result"];
-        [arguments setValue:@(recTs) forKey:@"recTs"];
-        
-        [self.methodChannel invokeMethod:@"rtvtRecognizeResult" arguments:arguments];
-        
-//    });
+    NSMutableDictionary * arguments = [NSMutableDictionary dictionary];
+    [arguments setValue:@(streamId) forKey:@"streamId"];
+    [arguments setValue:@(startTs) forKey:@"startTs"];
+    [arguments setValue:@(endTs) forKey:@"endTs"];
+    [arguments setValue:result forKey:@"result"];
+    [arguments setValue:@(recTs) forKey:@"recTs"];
+
+    [self.methodChannel invokeMethod:@"rtvtTranslatedResult" arguments:arguments];
+    
 }
 
-//-(BOOL)rtvtReloginWillStart:(RTVTClient *)client reloginCount:(int)reloginCount{
-//    return YES;
-//}
-//-(void)rtvtReloginCompleted:(RTVTClient *)client reloginCount:(int)reloginCount reloginResult:(BOOL)reloginResult error:(FPNError*)error{
-//
-//}
-//-(void)rtvtConnectClose:(RTVTClient *)client{
-//
-//}
+
+
+
+-(void)recognizedResultWithStreamId:(int64_t)streamId
+                            startTs:(int64_t)startTs
+                              endTs:(int64_t)endTs
+                             result:(NSString * _Nullable)result
+                              recTs:(int64_t)recTs{
+    
+    NSMutableDictionary * arguments = [NSMutableDictionary dictionary];
+    [arguments setValue:@(streamId) forKey:@"streamId"];
+    [arguments setValue:@(startTs) forKey:@"startTs"];
+    [arguments setValue:@(endTs) forKey:@"endTs"];
+    [arguments setValue:result forKey:@"result"];
+    [arguments setValue:@(recTs) forKey:@"recTs"];
+    
+    [self.methodChannel invokeMethod:@"rtvtRecognizeResult" arguments:arguments];
+    
+}
+
+
+
+-(void)recognizedTmpResultWithStreamId:(int64_t)streamId
+                               startTs:(int64_t)startTs
+                                 endTs:(int64_t)endTs
+                                result:(NSString * _Nullable)result
+                                 recTs:(int64_t)recTs{
+    
+    NSMutableDictionary * arguments = [NSMutableDictionary dictionary];
+    [arguments setValue:@(streamId) forKey:@"streamId"];
+    [arguments setValue:@(startTs) forKey:@"startTs"];
+    [arguments setValue:@(endTs) forKey:@"endTs"];
+    [arguments setValue:result forKey:@"result"];
+    [arguments setValue:@(recTs) forKey:@"recTs"];
+    
+    [self.methodChannel invokeMethod:@"rtvtTmpRecognizeResult" arguments:arguments];
+}
+
+
+//重连将要开始  根据返回值是否进行重连
+-(BOOL)rtvtReloginWillStart:(RTVTClient *)client reloginCount:(int)reloginCount{
+    
+    NSLog(@"%s ",__FUNCTION__);
+    
+    return YES;
+    
+}
+//重连结果
+-(void)rtvtReloginCompleted:(RTVTClient *)client reloginCount:(int)reloginCount reloginResult:(BOOL)reloginResult error:(FPNError*)error{
+    
+    
+    NSLog(@"%s %d %d %@",__FUNCTION__,reloginResult,error.code,error.ex);
+    
+    NSMutableDictionary * arguments = [NSMutableDictionary dictionary];
+    [arguments setValue:@(error.code) forKey:@"code"];
+    if (reloginResult == YES) {
+        
+        [arguments setValue:@"" forKey:@"ex"];
+        
+    }else{
+    
+        [arguments setValue:error.ex forKey:@"ex"];
+        
+    }
+    
+    [self.methodChannel invokeMethod:@"rtvtReloginResult" arguments:arguments];
+    
+}
+//关闭连接
+-(void)rtvtConnectClose:(RTVTClient *)client{
+    
+    NSLog(@"%s ",__FUNCTION__);
+    
+}
 @end
 

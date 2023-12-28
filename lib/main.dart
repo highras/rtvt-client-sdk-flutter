@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
-import 'RtvtController.dart';
 import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
+import 'dart:ffi';
+
+import 'RtvtController.dart';
 
 void main() {
   runApp(MyApp());
@@ -46,16 +48,33 @@ class _MyHomePageState extends State<MyHomePage> with RtvtDelegate {
   @override
   void rtvtRecognizeResult(
       int streamId, String result, int startTs, int endTs, int recTs) {
-    print("rtvtRecognizeResult ${result}");
+    print(
+        "识别结果 rtvtRecognizeResult ${result} streamId:${streamId} startTs:${startTs} endTs:${endTs}  recTs:${recTs}");
   }
 
   @override
   void rtvtTranslatedResult(
       int streamId, String result, int startTs, int endTs, int recTs) {
-    print("rtvtTranslatedResult ${result}");
+    print(
+        "翻译结果 rtvtTranslatedResult ${result} streamId:${streamId} startTs:${startTs} endTs:${endTs}  recTs:${recTs}");
     setState(() {
       hintString = result;
     });
+  }
+
+  @override
+  void rtvtTmpRecognizeResult(
+      int streamId, String result, int startTs, int endTs, int recTs) {
+    print(
+        "临时识别结果 rtvtTmpRecognizeResult ${result} streamId:${streamId} startTs:${startTs} endTs:${endTs}  recTs:${recTs}");
+  }
+
+  @override
+  void rtvtReloginResult(int code, String ex) {
+    print("重连结果 rtvtReloginResult ${code} ex:${ex}");
+    _streamId = 0;
+    _getStreamId();
+    //重连成功后需要拉取新的streamID (对应startTranslate方法)
   }
 
   RtvtController controller = RtvtController();
@@ -65,6 +84,8 @@ class _MyHomePageState extends State<MyHomePage> with RtvtDelegate {
     timer.cancel();
   });
   int _streamId = 0;
+  int pid = 0; //控制台获取的翻译项目id
+  String key = "";//控制台获取的翻译项目key
   String hintString = "";
   //登录
   void _login() {
@@ -72,12 +93,12 @@ class _MyHomePageState extends State<MyHomePage> with RtvtDelegate {
       hintString = "登录中...";
     });
 
-    controller.login("qwerty", "rtvt.ilivedata.com:14001", 90008000, this,
-        () {
+    controller.rtvtLogin(key,
+        "rtvt.ilivedata.com:14001", pid, this, () {
       setState(() {
-        hintString = "登录成功123";
+        hintString = "登录成功";
       });
-    },  (errorCode, errorEx) {
+    }, (errorCode, errorEx) {
       print("登录失败 ,errorCode:${errorCode}  ====   ex:${errorEx}");
       setState(() {
         hintString = "登录失败";
@@ -92,7 +113,8 @@ class _MyHomePageState extends State<MyHomePage> with RtvtDelegate {
         hintString = "拉取streamId...";
       });
 
-      controller.getStreamId(true, "zh", "en", (streamId) {
+      controller.startTranslate(
+          true, true, false, "userId123", "zh", "en", [], (streamId) {
         print("_getStreamId  ${streamId}");
         _streamId = streamId;
         setState(() {
@@ -120,11 +142,12 @@ class _MyHomePageState extends State<MyHomePage> with RtvtDelegate {
 
       int start = 0;
       int seq = 1;
-
+      
+      timer.cancel();
       timer = Timer.periodic(Duration(milliseconds: 20), (timer) {
         Uint8List frameData = Uint8List.view(pcmData.buffer, start, 640);
         controller.sendPcmData(
-            _streamId, frameData, seq, 0, () {}, (errorCode, errorEx) {});
+            _streamId, frameData, seq, DateTime.now().millisecondsSinceEpoch, () {}, (errorCode, errorEx) {});
 
         start = start + 640;
         seq = seq + 1;

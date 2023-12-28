@@ -56,6 +56,8 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar','*.aar'], dir: 'libs')
+//    implementation fileTree(include: ['*.jar'], dir: 'libs')
+//    implementation project(path: ':rtvtsdk')
 }
 
 flutter {

@@ -29,36 +29,44 @@ typedef void (^RTVTAnswerFailCallBack)(FPNError * _Nullable error);
 
 @interface RTVTClient : NSObject
 
++(NSString*)getSdkVersion;
 
 + (nullable instancetype)clientWithEndpoint:(nonnull NSString * )endpoint
                                   projectId:(int64_t)projectId
-                                     userId:(int64_t)userId
                                    delegate:(id <RTVTProtocol>)delegate;
 
 
-- (void)loginWithKey:(nonnull NSString *)key
-             success:(RTVTLoginSuccessCallBack)loginSuccess
-         connectFail:(RTVTLoginFailCallBack)loginFail;
+- (void)loginWithToken:(nonnull NSString *)token
+                    ts:(int64_t)ts//生成token对应的时间
+               success:(RTVTLoginSuccessCallBack)loginSuccess
+           connectFail:(RTVTLoginFailCallBack)loginFail;
 
 
 @property (nonatomic,readonly,strong)NSString * sdkVersion;
-@property (nonatomic,readonly,strong)NSString * apiVersion;
 @property (nonatomic,readonly,assign)RTVTClientConnectStatus currentConnectStatus;
 @property (nonatomic,assign,nullable)id <RTVTProtocol> delegate;
 @property (nonatomic,readonly,assign)int64_t projectId;
-@property (nonatomic,readonly,assign)int64_t userId;
+
 
 
 
 /// 开始翻译 获取streamId
-/// @param asrResult 是否需要语音识别的结果。 如果asrResult设置为NO 那么只会推送翻译语言的文本 如果asrResult设置为YES 那么会推送源语言和翻译语言两个结果翻
+/// @param asrResult 是否需要语音识别的结果
+/// @param transResult 是否需要语音翻译的结果
+/// @param asrTempResult 是否需要临时语音识别的结果
+/// @param userId 用户标识
 /// @param srcLanguage 源语言
 /// @param destLanguage 目标语言
+/// @param srcAltLanguage 备选语言
 /// @param successCallback 成功回调
 /// @param failCallback 失败回调
 -(void)starStreamTranslateWithAsrResult:(BOOL)asrResult
+                            transResult:(BOOL)transResult
+                          asrTempResult:(BOOL)asrTempResult
+                                 userId:(NSString * _Nullable)userId
                             srcLanguage:(nonnull NSString *)srcLanguage
                            destLanguage:(nonnull NSString *)destLanguage
+                         srcAltLanguage:(NSArray <NSString*> * _Nullable) srcAltLanguage
                                 success:(void(^)(int64_t streamId))successCallback
                                    fail:(RTVTAnswerFailCallBack)failCallback;
 
@@ -83,7 +91,7 @@ typedef void (^RTVTAnswerFailCallBack)(FPNError * _Nullable error);
 -(void)sendVoiceWithStreamId:(int64_t)streamId
                    voiceData:(nonnull NSData*)voiceData
                          seq:(int64_t)seq
-                          ts:(int)ts
+                          ts:(int64_t)ts
                      success:(RTVTAnswerSuccessCallBack)successCallback
                         fail:(RTVTAnswerFailCallBack)failCallback;
 
