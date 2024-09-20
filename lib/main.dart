@@ -86,6 +86,7 @@ class _MyHomePageState extends State<MyHomePage> with RtvtDelegate {
   int _streamId = 0;
   int pid = 0; //控制台获取的翻译项目id
   String key = "";//控制台获取的翻译项目key
+  String endpoint = "";
   String hintString = "";
   //登录
   void _login() {
@@ -94,7 +95,7 @@ class _MyHomePageState extends State<MyHomePage> with RtvtDelegate {
     });
 
     controller.rtvtLogin(key,
-        "rtvt.ilivedata.com:14001", pid, this, () {
+        endpoint, pid, this, () {
       setState(() {
         hintString = "登录成功";
       });

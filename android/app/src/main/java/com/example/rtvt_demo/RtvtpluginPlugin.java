@@ -46,7 +46,7 @@ public class RtvtpluginPlugin implements  FlutterPlugin ,MethodCallHandler{
   private  DartRTVTPushProcessor dartRTVTPushProcessor = new DartRTVTPushProcessor();
   class DartRTVTPushProcessor extends RTVTPushProcessor{
     @Override
-    public void recognizedResult(long streamId, long startTs, long endTs, long recTs, String srcVoiceText) {
+    public void recognizedResult(long streamId, long startTs, long endTs, long recTs, String language,String srcVoiceText,long taskId) {
       HashMap<String,Object> ret = new HashMap();
       ret.put("streamId",streamId);
       ret.put("startTs",startTs);
@@ -64,7 +64,7 @@ public class RtvtpluginPlugin implements  FlutterPlugin ,MethodCallHandler{
     }
 
     @Override
-    public void recognizedTempResult(long streamId, long startTs, long endTs, long recTs, String srcVoiceText) {
+    public void recognizedTempResult(long streamId, long startTs, long endTs, long recTs, String language,String srcVoiceText,long taskId) {
       HashMap<String,Object> ret = new HashMap();
       ret.put("streamId",streamId);
       ret.put("startTs",startTs);
@@ -81,7 +81,7 @@ public class RtvtpluginPlugin implements  FlutterPlugin ,MethodCallHandler{
     }
 
     @Override
-    public void translatedResult(long streamId, long startTs, long endTs, long recTs, String destVoiceText) {
+    public void translatedResult(long streamId, long startTs, long endTs, long recTs, String language,String destVoiceText,long taskId) {
       HashMap<String,Object> ret = new HashMap();
       ret.put("streamId",streamId);
       ret.put("startTs",startTs);
@@ -205,7 +205,7 @@ public class RtvtpluginPlugin implements  FlutterPlugin ,MethodCallHandler{
         result.success(ret);
       }
 
-      client.startTranslate(srcLanguage, destLanguage, srcAltLanguage, asrResult, asrTempResult, transResult, userId, new RTVTUserInterface.IRTVTCallback<RTVTStruct.VoiceStream>() {
+      client.startTranslate(srcLanguage, destLanguage, srcAltLanguage, asrResult, asrTempResult, transResult, false,"",userId, new RTVTUserInterface.IRTVTCallback<RTVTStruct.VoiceStream>() {
         @Override
         public void onError(RTVTStruct.RTVTAnswer rtvtAnswer) {
           ret.put("code",rtvtAnswer.errorCode);

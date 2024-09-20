@@ -56,6 +56,7 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar','*.aar'], dir: 'libs')
+    implementation 'com.github.highras:rtvt-android:2.0.1'
 //    implementation fileTree(include: ['*.jar'], dir: 'libs')
 //    implementation project(path: ':rtvtsdk')
 }
